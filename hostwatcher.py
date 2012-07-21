@@ -40,7 +40,6 @@ def recieve_answers():
                                      'lastupd': time.clock()}
 
 def print_stats():
-  total = 0
   active = 0
   
   onlines = []
@@ -54,7 +53,6 @@ def print_stats():
         onlines.append((host, port, state))
       else:
         offlines.append((host, port))
-      total += 1
       if state == 1 and online:
         active += 1
 
@@ -67,7 +65,7 @@ def print_stats():
   for info in offlines:
     print "%s:%d" % info
   print "-----------------------------------"
-  print "total: %d\nactive: %d" % (total, active)
+  print "total: %d\nactive: %d" % (len(onlines), active)
 
 def find_offline_servers():
   t = time.clock() - POLL_TIMEOUT
@@ -91,6 +89,6 @@ def poll(hosts, port_range):
 init_socket()
 
 servers_list=["94.198.52.129", "94.198.52.130", "94.198.52.131"]
-poll(servers_list, range(5000, 5050))
+poll(servers_list, range(5000, 5020))
   
 
