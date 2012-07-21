@@ -20,8 +20,13 @@ def init_socket():
 def ping_servers(hosts, port_range):
   print "ping servers %s" % str(hosts)
   for host in hosts:
+    if not host in servers_stats:
+      servers_stats[host] = {}
     for port in port_range:
-  #    print "ping " + host + ":%d" % port
+      if not port in servers_stats[host]:
+        servers_stats[host][port] = {'state': 0,
+                                    'online': False,
+                                    'lastupd' : 0}
       udpsock.sendto(pingmsg, (host, port))
 
 def recieve_answers():
@@ -86,7 +91,6 @@ def poll(hosts, port_range):
 init_socket()
 
 servers_list=["94.198.52.129", "94.198.52.130", "94.198.52.131"]
-#servers_list=["94.198.52.131"]
-poll(servers_list, range(5000, 5020))
+poll(servers_list, range(5000, 5050))
   
 
