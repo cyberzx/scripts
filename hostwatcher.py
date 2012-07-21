@@ -4,6 +4,8 @@ import json
 import struct
 import time
 
+# polling thread
+
 POLL_TIMEOUT = 5.0
 ONLINE_TIMEOUT = 30.0
 udpsock = None
@@ -84,6 +86,7 @@ def poll(hosts, port_range):
 init_socket()
 
 servers_list=["94.198.52.129", "94.198.52.130", "94.198.52.131"]
-poll(servers_list, range(5000, 5050))
+#servers_list=["94.198.52.131"]
+poll(servers_list, range(5000, 5020))
   
 
