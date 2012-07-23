@@ -3,43 +3,16 @@ import socket
 import json
 import struct
 import time
+from  collections import deque
 
-# polling thread
-
-POLL_TIMEOUT = 5.0
+POLL_TIMEOUT   = 5.0
+TOUCH_INTERVAL= 30.0
 ONLINE_TIMEOUT = 30.0
-udpsock = None
-pingmsg = struct.pack("B", 70)
-servers_stats = {}
+TOUCH_MESSAGE  = struct.pack("B", 69)
 
-def init_socket():
-  global  udpsock
-  udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-  udpsock.settimeout(POLL_TIMEOUT)
 
-def ping_servers(hosts, port_range):
-  print "ping servers %s" % str(hosts)
-  for host in hosts:
-    if not host in servers_stats:
-      servers_stats[host] = {}
-    for port in port_range:
-      if not port in servers_stats[host]:
-        servers_stats[host][port] = {'state': 0,
-                                    'online': False,
-                                    'lastupd' : 0}
-      udpsock.sendto(pingmsg, (host, port))
-
-def recieve_answers():
-  answer, addr = udpsock.recvfrom(16)
-  if not addr[0] in servers_stats:
-    servers_stats[addr[0]] = {}
-  state = struct.unpack("B", answer[1])[0]
-
-  servers_stats[addr[0]][addr[1]] = {'state': state, 
-                                     'online': True, 
-                                     'lastupd': time.clock()}
-
-def print_stats():
+def print_stats(servers_stats):
+  total = 0
   active = 0
   
   onlines = []
@@ -53,6 +26,7 @@ def print_stats():
         onlines.append((host, port, state))
       else:
         offlines.append((host, port))
+      total += 1
       if state == 1 and online:
         active += 1
 
@@ -61,34 +35,91 @@ def print_stats():
   for info in onlines:
     print "%s:%d -> %d" % info
   print "-----------------------------------"
-  print "offline: "
-  for info in offlines:
-    print "%s:%d" % info
+  #print "offline: "
+  #for info in offlines:
+  #  print "%s:%d" % info
   print "-----------------------------------"
-  print "total: %d\nactive: %d" % (len(onlines), active)
+  print "total: %d\nactive: %d\nonline: %d\noffline: %d" % (total, active, len(onlines), len(offlines))
 
-def find_offline_servers():
-  t = time.clock() - POLL_TIMEOUT
-  for host in servers_stats.iterkeys():
-    for port in servers_stats[host].iterkeys():
-      info = servers_stats[host][port]
-      if (t - info["lastupd"]) > ONLINE_TIMEOUT:
-        info["online"] = False
+def ping_servers(hosts, ports):
+  udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+  udpsock.setblocking(0)
+
+  poll = select.poll()
+  poll.register(udpsock.fileno(), select.POLLIN | select.POLLOUT)
+
+  servers_stats = {}
+  hostslist = deque(reduce(lambda x, y: x + y,
+                        map(lambda h: 
+                          map (lambda p: (h, p), ports),
+                            hosts)))
+  for host, port in hostslist:
+    if not host in servers_stats:
+      servers_stats[host] = {}
+    servers_stats[host][port] = {'state': 0,
+                                 'online': False,
+                                 'lastupd' : 0}
   
 
-def poll(hosts, port_range):
-  ping_servers(hosts, port_range)
-  while True:
+  def find_offline_servers():
+    t = time.clock() - POLL_TIMEOUT
+    for host in servers_stats.iterkeys():
+      for port in servers_stats[host].iterkeys():
+        info = servers_stats[host][port]
+        if (t - info["lastupd"]) > ONLINE_TIMEOUT:
+          info["online"] = False
+  
+  def recieve_answers():
+    print("recieve answers")
     try:
-      recieve_answers()
-    except socket.timeout:
-      find_offline_servers()
-      print_stats()
-      ping_servers(hosts, port_range)
+      answer, addr = udpsock.recvfrom(16)
+      if not addr[0] in servers_stats:
+        servers_stats[addr[0]] = {}
+      state = struct.unpack("B", answer[1])[0]
 
-init_socket()
+      servers_stats[addr[0]][addr[1]] = {'state': state, 
+                                         'online': True, 
+                                         'lastupd': time.clock()}
+    except socket.error:
+      None
+
+  def touch_servers():
+    n = 0
+    try:
+      while n < len(hostslist):
+        udpsock.sendto(TOUCH_MESSAGE, hostslist[n])
+        n+=1
+      print("touch %d servers: " % n)
+      return  True
+    except socket.error:
+      print("touch %d servers: " % n)
+      print("write blocked")
+      hostslist.rotate(n)
+      return  False
+
+  lastprinttime = 0
+  lasttouchtime = 0
+  while True:
+    writeBlock = False
+    
+    if time.clock() - lasttouchtime > TOUCH_INTERVAL:
+      writeBlock = not touch_servers()
+      lasttouchtime = time.clock()
+
+    pollevents = poll.poll(POLL_TIMEOUT)
+    for fd, event in pollevents:
+      if event & select.POLLIN != 0:
+        recieve_answers()
+      elif event & select.POLLOUT and writeBlock:
+        touch_servers()
+
+    if time.clock() - lastprinttime > 4.0:
+      find_offline_servers()
+      print_stats(servers_stats) 
+      lastprinttime = time.clock()
+  
 
 servers_list=["94.198.52.129", "94.198.52.130", "94.198.52.131"]
-poll(servers_list, range(5000, 5020))
+ping_servers(servers_list, range(5000, 5030))
   
 
