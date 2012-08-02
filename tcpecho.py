@@ -1,4 +1,5 @@
 import socket
+import  time
 
 host = ''
 port = 7852
@@ -9,9 +10,19 @@ s.bind((host,port))
 s.listen(backlog)
 while 1:
     client, address = s.accept()
-    data = client.recv(size)
+    data = []
+    try:
+      while 1:
+        packet = client.recv(size)
+        data.append(packet)
+        if len(packet) == 0
+          break
+    except:
+      None
+    
     print "recieved %d bytes " % len(data)
     if data:
         client.send(data)
+    time.sleep(2)
     client.close() 
 
