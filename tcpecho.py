@@ -14,6 +14,7 @@ while 1:
     try:
       while 1:
         packet = client.recv(size)
+        print "recieved packet %d bytes " % len(packet)
         data.append(packet)
         if len(packet) == 0
           break
