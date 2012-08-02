@@ -6,8 +6,8 @@ import time
 from  collections import deque
 
 POLL_TIMEOUT   = 5.0
-TOUCH_INTERVAL= 30.0
-ONLINE_TIMEOUT = 30.0
+TOUCH_INTERVAL= 5.0
+ONLINE_TIMEOUT = 120.0
 TOUCH_MESSAGE  = struct.pack("B", 69)
 
 
@@ -35,18 +35,15 @@ def print_stats(servers_stats):
   for info in onlines:
     print "%s:%d -> %d" % info
   print "-----------------------------------"
-  #print "offline: "
-  #for info in offlines:
-  #  print "%s:%d" % info
+  print "offline: "
+  for info in offlines:
+    print "%s:%d" % info
   print "-----------------------------------"
   print "total: %d\nactive: %d\nonline: %d\noffline: %d" % (total, active, len(onlines), len(offlines))
 
 def ping_servers(hosts, ports):
   udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   udpsock.setblocking(0)
-
-  poll = select.poll()
-  poll.register(udpsock.fileno(), select.POLLIN | select.POLLOUT)
 
   servers_stats = {}
   hostslist = deque(reduce(lambda x, y: x + y,
@@ -70,7 +67,6 @@ def ping_servers(hosts, ports):
           info["online"] = False
   
   def recieve_answers():
-    print("recieve answers")
     try:
       answer, addr = udpsock.recvfrom(16)
       if not addr[0] in servers_stats:
@@ -98,20 +94,20 @@ def ping_servers(hosts, ports):
       return  False
 
   lastprinttime = 0
-  lasttouchtime = 0
+  lasttouchtime = -TOUCH_INTERVAL
   while True:
     writeBlock = False
     
-    if time.clock() - lasttouchtime > TOUCH_INTERVAL:
+    touchDT = time.clock() - lasttouchtime
+    if touchDT > TOUCH_INTERVAL:
       writeBlock = not touch_servers()
       lasttouchtime = time.clock()
 
-    pollevents = poll.poll(POLL_TIMEOUT)
-    for fd, event in pollevents:
-      if event & select.POLLIN != 0:
-        recieve_answers()
-      elif event & select.POLLOUT and writeBlock:
-        touch_servers()
+    rlist, wlist, xlist = select.select([udpsock], [udpsock], [udpsock], POLL_TIMEOUT)
+    if len(rlist) > 0:
+      recieve_answers()
+    if len(wlist) > 0 and writeBlock:
+      touch_servers()
 
     if time.clock() - lastprinttime > 4.0:
       find_offline_servers()
@@ -120,6 +116,7 @@ def ping_servers(hosts, ports):
   
 
 servers_list=["94.198.52.129", "94.198.52.130", "94.198.52.131"]
-ping_servers(servers_list, range(5000, 5030))
+servers_list=["94.198.52.131"]
+ping_servers(servers_list, range(5000, 5050))
   
 
