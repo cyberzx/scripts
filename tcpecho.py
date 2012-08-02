@@ -10,13 +10,13 @@ s.bind((host,port))
 s.listen(backlog)
 while 1:
     client, address = s.accept()
-    data = []
+    data = ""
     try:
       while 1:
         packet = client.recv(size)
         print "recieved packet %d bytes " % len(packet)
-        data.append(packet)
-        if len(packet) == 0
+        data = data + packet
+        if packet == 'X':
           break
     except:
       None
