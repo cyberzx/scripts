@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ $# -lt 1 ];
+then
+  echo "usage: logdog logfile"
+  exit 1
+fi
+
+LOG_FILE=$1
+REGEX=[ALERT]
+
+tail -F "$LOG_FILE" | grep --line-buffered $REGEX | ./send_alert.py
