@@ -26,7 +26,6 @@ def send_email(subject, message, from_addr, to_addr, smtp_addr,
               attachments = [], login = None, password = None ):
   """ send email"""
   
-  return
   msg = MIMEMultipart()
   msg['Subject'] = subject
   msg['From'] = from_addr
