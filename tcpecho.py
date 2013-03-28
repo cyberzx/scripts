@@ -16,7 +16,7 @@ while 1:
         packet = client.recv(size)
         print "recieved packet %d bytes " % len(packet)
         data = data + packet
-        if packet == 'X':
+        if data[-1] == 'X':
           break
     except:
       None
